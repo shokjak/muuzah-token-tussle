@@ -1,0 +1,428 @@
+/**
+ * Muuzah - Reddit Devvit Backend
+ * 
+ * This file handles:
+ * - Reddit user authentication
+ * - Game state persistence via Redis
+ * - Matchmaking queue
+ * - Leaderboard management
+ * 
+ * IMPORTANT: This file uses Devvit SDK syntax and must be deployed separately.
+ * Copy this to your Devvit project's src/main.tsx
+ */
+
+import { Devvit, useState, useAsync } from '@devvit/public-api';
+
+// Configure Devvit
+Devvit.configure({
+  redditAPI: true,
+  redis: true,
+});
+
+// Redis Keys
+const REDIS_KEYS = {
+  MATCHMAKING_QUEUE: 'muuzah:matchmaking_queue',
+  LEADERBOARD: 'muuzah:leaderboard',
+  GAME_PREFIX: 'muuzah:game:',
+  USER_GAMES_PREFIX: 'muuzah:user_games:',
+};
+
+// Game state interface
+interface GameState {
+  gameId: string;
+  player1Id: string;
+  player2Id: string;
+  player1Username: string;
+  player2Username: string;
+  player1Grid: string; // JSON stringified
+  player2Grid: string;
+  player1Lives: number;
+  player2Lives: number;
+  player1Score: number;
+  player2Score: number;
+  player1SetupComplete: boolean;
+  player2SetupComplete: boolean;
+  currentTurnUserId: string | null;
+  shapeValues: string; // JSON stringified
+  colorMultipliers: string;
+  winnerId: string | null;
+  winReason: string | null;
+  createdAt: number;
+  lastMoveAt: number;
+}
+
+// Add a custom post type for the game
+Devvit.addCustomPostType({
+  name: 'Muuzah Game',
+  height: 'tall',
+  render: (context) => {
+    const [webviewVisible, setWebviewVisible] = useState(false);
+
+    // Get current user info
+    const { data: currentUser } = useAsync(async () => {
+      const user = await context.reddit.getCurrentUser();
+      return user ? {
+        id: user.id,
+        username: user.username,
+      } : null;
+    });
+
+    // Handle messages from the webview
+    const handleMessage = async (msg: any) => {
+      const { type, payload } = msg;
+
+      switch (type) {
+        case 'INIT':
+          // Send current user data to webview
+          context.ui.webView.postMessage('muuzah-webview', {
+            type: 'GAME_STATE_UPDATE',
+            payload: {
+              currentUser,
+              gameState: null,
+            },
+          });
+          break;
+
+        case 'FIND_MATCH':
+          await handleFindMatch(context, currentUser!);
+          break;
+
+        case 'SUBMIT_SETUP':
+          await handleSubmitSetup(context, currentUser!, payload.grid);
+          break;
+
+        case 'ATTACK':
+          await handleAttack(context, currentUser!, payload.x, payload.y);
+          break;
+
+        case 'GET_LEADERBOARD':
+          await handleGetLeaderboard(context);
+          break;
+      }
+    };
+
+    // Show launch button initially
+    if (!webviewVisible) {
+      return (
+        <vstack height="100%" width="100%" alignment="center middle" gap="medium">
+          <text size="xxlarge" weight="bold" color="#FF4500">MUUZAH</text>
+          <text size="medium" color="neutral-content">Battleship meets Mastermind</text>
+          <spacer size="medium" />
+          <button
+            appearance="primary"
+            onPress={() => setWebviewVisible(true)}
+          >
+            Play Now
+          </button>
+        </vstack>
+      );
+    }
+
+    // Show the webview
+    return (
+      <vstack height="100%" width="100%">
+        <webview
+          id="muuzah-webview"
+          url="index.html"
+          width="100%"
+          height="100%"
+          onMessage={handleMessage}
+        />
+      </vstack>
+    );
+  },
+});
+
+// Matchmaking handler
+async function handleFindMatch(context: any, user: { id: string; username: string }) {
+  const redis = context.redis;
+  
+  // Check if there's someone in the queue
+  const waitingPlayer = await redis.lPop(REDIS_KEYS.MATCHMAKING_QUEUE);
+  
+  if (waitingPlayer && waitingPlayer !== user.id) {
+    // Found a match! Create a new game
+    const waitingUser = JSON.parse(waitingPlayer);
+    const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Generate random values
+    const shapeValues = generateRandomShapeValues();
+    const colorMultipliers = generateColorMultipliers();
+    
+    // Create game state
+    const gameState: GameState = {
+      gameId,
+      player1Id: waitingUser.id,
+      player2Id: user.id,
+      player1Username: waitingUser.username,
+      player2Username: user.username,
+      player1Grid: '[]',
+      player2Grid: '[]',
+      player1Lives: 3,
+      player2Lives: 3,
+      player1Score: 0,
+      player2Score: 0,
+      player1SetupComplete: false,
+      player2SetupComplete: false,
+      currentTurnUserId: null,
+      shapeValues: JSON.stringify(shapeValues),
+      colorMultipliers: JSON.stringify(colorMultipliers),
+      winnerId: null,
+      winReason: null,
+      createdAt: Date.now(),
+      lastMoveAt: Date.now(),
+    };
+    
+    // Store game in Redis
+    await redis.set(REDIS_KEYS.GAME_PREFIX + gameId, JSON.stringify(gameState));
+    await redis.set(REDIS_KEYS.USER_GAMES_PREFIX + user.id, gameId);
+    await redis.set(REDIS_KEYS.USER_GAMES_PREFIX + waitingUser.id, gameId);
+    
+    // Notify both players
+    context.ui.webView.postMessage('muuzah-webview', {
+      type: 'MATCH_FOUND',
+      payload: {
+        gameId,
+        opponent: waitingUser,
+        youArePlayer: 2,
+        shapeValues,
+        colorMultipliers,
+      },
+    });
+    
+    // Note: In a real implementation, you'd need to notify the waiting player too
+    // This would require a realtime channel or polling mechanism
+    
+  } else {
+    // No one waiting, add to queue
+    await redis.rPush(
+      REDIS_KEYS.MATCHMAKING_QUEUE, 
+      JSON.stringify({ id: user.id, username: user.username })
+    );
+    
+    // Player is now waiting
+    context.ui.webView.postMessage('muuzah-webview', {
+      type: 'WAITING_FOR_MATCH',
+      payload: {},
+    });
+  }
+}
+
+// Setup submission handler
+async function handleSubmitSetup(context: any, user: { id: string }, grid: any) {
+  const redis = context.redis;
+  
+  // Get current game
+  const gameId = await redis.get(REDIS_KEYS.USER_GAMES_PREFIX + user.id);
+  if (!gameId) return;
+  
+  const gameData = await redis.get(REDIS_KEYS.GAME_PREFIX + gameId);
+  if (!gameData) return;
+  
+  const game: GameState = JSON.parse(gameData);
+  
+  // Update the appropriate player's grid
+  if (game.player1Id === user.id) {
+    game.player1Grid = JSON.stringify(grid);
+    game.player1SetupComplete = true;
+  } else {
+    game.player2Grid = JSON.stringify(grid);
+    game.player2SetupComplete = true;
+  }
+  
+  // Check if both players are ready
+  if (game.player1SetupComplete && game.player2SetupComplete) {
+    game.currentTurnUserId = game.player1Id; // Player 1 goes first
+  }
+  
+  // Save updated game
+  await redis.set(REDIS_KEYS.GAME_PREFIX + gameId, JSON.stringify(game));
+  
+  // Notify player
+  context.ui.webView.postMessage('muuzah-webview', {
+    type: 'SETUP_COMPLETE',
+    payload: {
+      bothReady: game.player1SetupComplete && game.player2SetupComplete,
+    },
+  });
+}
+
+// Attack handler
+async function handleAttack(context: any, user: { id: string }, x: number, y: number) {
+  const redis = context.redis;
+  
+  // Get current game
+  const gameId = await redis.get(REDIS_KEYS.USER_GAMES_PREFIX + user.id);
+  if (!gameId) return;
+  
+  const gameData = await redis.get(REDIS_KEYS.GAME_PREFIX + gameId);
+  if (!gameData) return;
+  
+  const game: GameState = JSON.parse(gameData);
+  
+  // Verify it's this player's turn
+  if (game.currentTurnUserId !== user.id) return;
+  
+  // Get opponent's grid
+  const isPlayer1 = game.player1Id === user.id;
+  const opponentGrid = JSON.parse(isPlayer1 ? game.player2Grid : game.player1Grid);
+  
+  // Check the cell
+  const cell = opponentGrid[y][x];
+  if (cell.isRevealed) return;
+  
+  // Reveal the cell
+  cell.isRevealed = true;
+  
+  let result: 'hit' | 'miss' | 'bomb' = 'miss';
+  let points = 0;
+  
+  if (cell.isBomb) {
+    result = 'bomb';
+    // Attacker loses a life
+    if (isPlayer1) {
+      game.player1Lives -= 1;
+    } else {
+      game.player2Lives -= 1;
+    }
+  } else if (cell.token) {
+    result = 'hit';
+    const shapeValues = JSON.parse(game.shapeValues);
+    const colorMultipliers = JSON.parse(game.colorMultipliers);
+    points = Math.round(shapeValues[cell.token.shape] * colorMultipliers[cell.token.color]);
+    
+    if (isPlayer1) {
+      game.player1Score += points;
+    } else {
+      game.player2Score += points;
+    }
+  }
+  
+  // Update opponent's grid
+  if (isPlayer1) {
+    game.player2Grid = JSON.stringify(opponentGrid);
+  } else {
+    game.player1Grid = JSON.stringify(opponentGrid);
+  }
+  
+  // Check win conditions
+  const attackerLives = isPlayer1 ? game.player1Lives : game.player2Lives;
+  if (attackerLives <= 0) {
+    game.winnerId = isPlayer1 ? game.player2Id : game.player1Id;
+    game.winReason = 'sudden-death';
+  } else if (allTokensRevealed(opponentGrid)) {
+    // Compare scores
+    game.winnerId = game.player1Score >= game.player2Score ? game.player1Id : game.player2Id;
+    game.winReason = 'score';
+  }
+  
+  // Switch turns if game not over
+  if (!game.winnerId) {
+    game.currentTurnUserId = isPlayer1 ? game.player2Id : game.player1Id;
+  }
+  
+  game.lastMoveAt = Date.now();
+  
+  // Save updated game
+  await redis.set(REDIS_KEYS.GAME_PREFIX + gameId, JSON.stringify(game));
+  
+  // Update leaderboard if game over
+  if (game.winnerId) {
+    await updateLeaderboard(redis, game);
+  }
+  
+  // Send result
+  context.ui.webView.postMessage('muuzah-webview', {
+    type: 'ATTACK_RESULT',
+    payload: {
+      x,
+      y,
+      result,
+      token: cell.token,
+      points,
+      gameState: game,
+    },
+  });
+}
+
+// Leaderboard handler
+async function handleGetLeaderboard(context: any) {
+  const redis = context.redis;
+  
+  // Get top 10 from sorted set
+  const entries = await redis.zRange(REDIS_KEYS.LEADERBOARD, 0, 9, { by: 'score', reverse: true });
+  
+  const leaderboard = entries.map((entry: any, index: number) => ({
+    rank: index + 1,
+    username: entry.member,
+    score: entry.score,
+    wins: 0, // Would need separate tracking
+    gamesPlayed: 0,
+  }));
+  
+  context.ui.webView.postMessage('muuzah-webview', {
+    type: 'LEADERBOARD_DATA',
+    payload: leaderboard,
+  });
+}
+
+// Update leaderboard after game
+async function updateLeaderboard(redis: any, game: GameState) {
+  const winnerScore = game.player1Id === game.winnerId ? game.player1Score : game.player2Score;
+  const winnerUsername = game.player1Id === game.winnerId ? game.player1Username : game.player2Username;
+  
+  // Increment winner's total score
+  await redis.zIncrBy(REDIS_KEYS.LEADERBOARD, winnerUsername, winnerScore);
+}
+
+// Helper: Generate random shape values
+function generateRandomShapeValues() {
+  const values = [10, 25, 50, 100];
+  const shuffled = [...values].sort(() => Math.random() - 0.5);
+  return {
+    circle: shuffled[0],
+    square: shuffled[1],
+    triangle: shuffled[2],
+    star: shuffled[3],
+  };
+}
+
+// Helper: Generate color multipliers
+function generateColorMultipliers() {
+  const multipliers = [1, 1.5, 2, 2.5];
+  const shuffled = [...multipliers].sort(() => Math.random() - 0.5);
+  return {
+    red: shuffled[0],
+    blue: shuffled[1],
+    green: shuffled[2],
+    yellow: shuffled[3],
+  };
+}
+
+// Helper: Check if all tokens revealed
+function allTokensRevealed(grid: any[][]): boolean {
+  return grid.flat().every((cell) => !cell.token || cell.isRevealed);
+}
+
+// Menu action to create a new game post
+Devvit.addMenuItem({
+  label: 'Create Muuzah Game',
+  location: 'subreddit',
+  onPress: async (event, context) => {
+    const subreddit = await context.reddit.getCurrentSubreddit();
+    
+    await context.reddit.submitPost({
+      title: '🎮 MUUZAH - Battleship meets Mastermind!',
+      subredditName: subreddit.name,
+      preview: (
+        <vstack height="100%" width="100%" alignment="center middle">
+          <text size="large">Loading Muuzah...</text>
+        </vstack>
+      ),
+    });
+    
+    context.ui.showToast('Muuzah game created!');
+  },
+});
+
+export default Devvit;

@@ -1,0 +1,12 @@
+# Devvit configuration for Muuzah
+name: muuzah-game
+version: 0.0.1
+author: your-reddit-username
+
+# Required capabilities
+capabilities:
+  - redis        # For storing game state and leaderboards
+  - redditAPI    # For getting user info
+
+# Webview configuration
+webviewEnabled: true
