@@ -8,62 +8,72 @@ interface TokenShapeProps {
   className?: string;
 }
 
+// Clean, solid colors for better visibility
 const colorMap: Record<TokenColor, string> = {
-  red: 'hsl(0, 85%, 55%)',
-  blue: 'hsl(210, 100%, 55%)',
-  green: 'hsl(145, 80%, 45%)',
-  yellow: 'hsl(45, 100%, 55%)',
+  red: 'hsl(0, 84%, 60%)',
+  blue: 'hsl(217, 91%, 60%)',
+  green: 'hsl(142, 71%, 45%)',
+  yellow: 'hsl(45, 93%, 47%)',
 };
 
 const sizeMap = {
-  sm: 16,
-  md: 24,
-  lg: 32,
+  sm: 18,
+  md: 26,
+  lg: 34,
 };
 
 export function TokenShape({ shape, color, size = 'md', className }: TokenShapeProps) {
   const pixelSize = sizeMap[size];
   const fillColor = colorMap[color];
+  const strokeColor = 'rgba(0,0,0,0.15)';
   
   const renderShape = () => {
+    const center = pixelSize / 2;
+    const padding = 3;
+    
     switch (shape) {
       case 'circle':
         return (
           <circle
-            cx={pixelSize / 2}
-            cy={pixelSize / 2}
-            r={pixelSize / 2 - 2}
+            cx={center}
+            cy={center}
+            r={center - padding}
             fill={fillColor}
-            className="token-shape"
+            stroke={strokeColor}
+            strokeWidth="1"
           />
         );
       case 'square':
         return (
           <rect
-            x={2}
-            y={2}
-            width={pixelSize - 4}
-            height={pixelSize - 4}
+            x={padding}
+            y={padding}
+            width={pixelSize - padding * 2}
+            height={pixelSize - padding * 2}
+            rx="2"
             fill={fillColor}
-            className="token-shape"
+            stroke={strokeColor}
+            strokeWidth="1"
           />
         );
       case 'triangle':
-        const points = `${pixelSize / 2},2 ${pixelSize - 2},${pixelSize - 2} 2,${pixelSize - 2}`;
+        const triPoints = `${center},${padding} ${pixelSize - padding},${pixelSize - padding} ${padding},${pixelSize - padding}`;
         return (
           <polygon
-            points={points}
+            points={triPoints}
             fill={fillColor}
-            className="token-shape"
+            stroke={strokeColor}
+            strokeWidth="1"
           />
         );
       case 'star':
-        const starPoints = generateStarPoints(pixelSize / 2, pixelSize / 2, 5, pixelSize / 2 - 2, (pixelSize / 2 - 2) / 2);
+        const starPoints = generateStarPoints(center, center, 5, center - padding, (center - padding) / 2.2);
         return (
           <polygon
             points={starPoints}
             fill={fillColor}
-            className="token-shape"
+            stroke={strokeColor}
+            strokeWidth="1"
           />
         );
       default:
@@ -76,8 +86,7 @@ export function TokenShape({ shape, color, size = 'md', className }: TokenShapeP
       width={pixelSize}
       height={pixelSize}
       viewBox={`0 0 ${pixelSize} ${pixelSize}`}
-      className={cn('drop-shadow-lg', className)}
-      style={{ filter: `drop-shadow(0 0 6px ${fillColor})` }}
+      className={cn('flex-shrink-0', className)}
     >
       {renderShape()}
     </svg>

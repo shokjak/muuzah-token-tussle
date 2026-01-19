@@ -25,11 +25,11 @@ export function GameGrid({
     <div className="inline-block">
       {/* Column headers */}
       <div className="flex mb-1">
-        <div className="w-6 h-6" /> {/* Corner spacer */}
+        <div className="w-5 h-5" /> {/* Corner spacer */}
         {letters.map((letter) => (
           <div
             key={letter}
-            className="w-10 h-6 md:w-12 flex items-center justify-center text-sm font-bold text-muted-foreground"
+            className="w-10 h-5 md:w-11 flex items-center justify-center text-xs font-semibold text-muted-foreground"
           >
             {letter}
           </div>
@@ -37,15 +37,15 @@ export function GameGrid({
       </div>
 
       {/* Grid rows */}
-      {grid.map((row, y) => (
-        <div key={y} className="flex">
-          {/* Row number */}
-          <div className="w-6 h-10 md:h-12 flex items-center justify-center text-sm font-bold text-muted-foreground">
-            {y + 1}
-          </div>
-          
-          {/* Cells */}
-          <div className="flex gap-0.5">
+      <div className="flex flex-col gap-1">
+        {grid.map((row, y) => (
+          <div key={y} className="flex gap-1">
+            {/* Row number */}
+            <div className="w-5 h-10 md:h-11 flex items-center justify-center text-xs font-semibold text-muted-foreground">
+              {y + 1}
+            </div>
+            
+            {/* Cells */}
             {row.map((cell, x) => (
               <GameCell
                 key={`${x}-${y}`}
@@ -59,8 +59,8 @@ export function GameGrid({
               />
             ))}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
