@@ -8,5 +8,9 @@ capabilities:
   - redis        # For storing game state and leaderboards
   - redditAPI    # For getting user info
 
-# Webview configuration
-webviewEnabled: true
+# Webview configuration - NEW REQUIRED FORMAT
+post:
+  dir: webroot
+  entrypoints:
+    default:
+      entry: index.html
