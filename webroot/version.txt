@@ -1,2 +1,5 @@
-BUILD_VERSION: 2025-01-19-v4
-webroot config fixed
+BUILD_VERSION: 2025-01-19-v6
+CHANGES:
+- Removed BrowserRouter (not compatible with Devvit iframe)
+- Fixed webview url to use relative path ./index.html
+- App now renders MuuzahGame directly without routing
