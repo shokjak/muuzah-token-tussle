@@ -73,14 +73,26 @@ Devvit.addCustomPostType({
 
       switch (type) {
         case 'INIT':
-          // Send current user data to webview
-          context.ui.webView.postMessage('muuzah-webview', {
-            type: 'GAME_STATE_UPDATE',
-            payload: {
-              currentUser,
-              gameState: null,
-            },
-          });
+          // Wait for user data if not yet loaded
+          if (!currentUser) {
+            const user = await context.reddit.getCurrentUser();
+            const userData = user ? { id: user.id, username: user.username } : null;
+            context.ui.webView.postMessage('muuzah-webview', {
+              type: 'GAME_STATE_UPDATE',
+              payload: {
+                currentUser: userData,
+                gameState: null,
+              },
+            });
+          } else {
+            context.ui.webView.postMessage('muuzah-webview', {
+              type: 'GAME_STATE_UPDATE',
+              payload: {
+                currentUser,
+                gameState: null,
+              },
+            });
+          }
           break;
 
         case 'FIND_MATCH':
