@@ -154,12 +154,12 @@ Devvit.addCustomPostType({
       );
     }
 
-    // Show the webview
+    // Show the webview - url must be relative to webroot directory
     return (
       <vstack height="100%" width="100%">
         <webview
           id="muuzah-webview"
-          url="index.html"
+          url="./index.html"
           width="100%"
           height="100%"
           onMessage={handleMessage}

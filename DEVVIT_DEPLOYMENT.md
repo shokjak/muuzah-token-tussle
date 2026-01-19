@@ -58,14 +58,23 @@ Replace your Devvit project's `devvit.yaml` with:
 ```yaml
 name: muuzah-game
 version: 0.0.1
-author: your-reddit-username
 
 capabilities:
   - redis
   - redditAPI
 
-webviewEnabled: true
+# Webview configuration - correct format for Devvit
+post:
+  dir: webroot
+  entrypoints:
+    default:
+      entry: index.html
 ```
+
+**IMPORTANT NOTES:**
+- Do NOT use `webviewEnabled: true` - this is deprecated
+- The `post.dir` must point to the folder containing your built assets
+- All asset paths in index.html MUST be relative (./assets/...) not absolute (/assets/...)
 
 ## Step 5: Upload to Reddit
 
