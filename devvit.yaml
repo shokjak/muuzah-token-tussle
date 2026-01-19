@@ -1,10 +1,14 @@
 # Devvit configuration
 name: muuzah-game
-version: 0.0.6
+version: 0.0.7
 
 capabilities:
   - redis
   - redditAPI
 
-# Webview assets - simple format
-webroot: webroot
+# Webview configuration - nested format as per DEVVIT_DEPLOYMENT.md
+post:
+  dir: webroot
+  entrypoints:
+    default:
+      entry: index.html
