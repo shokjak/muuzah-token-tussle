@@ -26,14 +26,16 @@ export function GameGrid({
       {/* Column headers */}
       <div className="flex mb-1">
         <div className="w-5 h-5" /> {/* Corner spacer */}
-        {letters.map((letter) => (
-          <div
-            key={letter}
-            className="w-10 h-5 md:w-11 flex items-center justify-center text-xs font-semibold text-muted-foreground"
-          >
-            {letter}
-          </div>
-        ))}
+        <div className="flex gap-1">
+          {letters.map((letter) => (
+            <div
+              key={letter}
+              className="w-10 h-5 md:w-11 flex items-center justify-center text-xs font-semibold text-muted-foreground"
+            >
+              {letter}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Grid rows */}
