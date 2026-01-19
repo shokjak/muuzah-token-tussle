@@ -85,13 +85,10 @@ class DevvitBridge {
     console.log('[DevvitBridge] Sending message:', JSON.stringify(message));
     
     if (this.isDevvitEnvironment) {
-      // Devvit requires wrapped message format
-      const wrappedMessage = {
-        type: 'devvit-message',
-        data: { message }
-      };
-      console.log('[DevvitBridge] Posting wrapped:', JSON.stringify(wrappedMessage));
-      window.parent.postMessage(wrappedMessage, '*');
+      // Devvit expects direct message format - NO wrapping needed
+      // The Devvit framework handles the message routing automatically
+      console.log('[DevvitBridge] Posting to parent:', JSON.stringify(message));
+      window.parent.postMessage(message, '*');
     } else {
       // Development mode - simulate responses
       console.log('[DevvitBridge] Dev mode - simulating response');

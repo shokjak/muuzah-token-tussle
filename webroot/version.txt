@@ -1,5 +1,5 @@
-BUILD_VERSION: 2025-01-19-v7
+BUILD_VERSION: 2025-01-19-v8
 CHANGES:
-- Fixed auto-initialization for Devvit webview
-- Bridge now sends INIT automatically when webview loads
-- Prevents duplicate INIT calls
+- Fixed message format: removed unnecessary wrapping
+- Frontend now sends direct messages (Devvit handles routing)
+- Backend expects direct message format
