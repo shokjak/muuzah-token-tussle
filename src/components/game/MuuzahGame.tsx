@@ -18,6 +18,7 @@ import {
   countTokens,
   countBombs,
   isSetupComplete,
+  generateAIGrid,
 } from '@/utils/gameLogic';
 import { devvitBridge } from '@/utils/devvitBridge';
 import { soundManager } from '@/utils/soundManager';
@@ -218,19 +219,30 @@ export function MuuzahGame() {
     devvitBridge.submitSetup(localGrid);
     setPhase('waiting-for-setup');
     
-    // For development, simulate opponent setup completion
+    // For development, simulate opponent setup completion with actual tokens
     setTimeout(() => {
       if (gameState) {
         const isPlayer1 = currentUser?.id === gameState.player1?.user.id;
+        
+        // Generate a random grid for the AI opponent
+        const opponentGrid = generateAIGrid(GRID_SIZE, TOKENS_PER_PLAYER, BOMBS_PER_PLAYER);
+        
         setGameState(prev => {
           if (!prev) return prev;
           
           const playerKey = isPlayer1 ? 'player1' : 'player2';
+          const opponentKey = isPlayer1 ? 'player2' : 'player1';
+          
           return {
             ...prev,
             [playerKey]: {
               ...prev[playerKey]!,
               grid: localGrid,
+              setupComplete: true,
+            },
+            [opponentKey]: {
+              ...prev[opponentKey]!,
+              grid: opponentGrid,
               setupComplete: true,
             },
             phase: 'your-turn',
@@ -260,16 +272,16 @@ export function MuuzahGame() {
     const cell = opponent.grid[y][x];
     if (cell.isRevealed) return;
 
-    // For development, simulate locally
+    // Check actual cell content for hit/miss/bomb
     let result: 'hit' | 'miss' | 'bomb' = 'miss';
     let points = 0;
+    let hitToken: Token | undefined;
     
-    // Simulate some hits for testing
-    const hitChance = Math.random();
-    if (hitChance < 0.3) {
+    if (cell.token) {
       result = 'hit';
-      points = Math.floor(Math.random() * 200) + 10;
-    } else if (hitChance < 0.4) {
+      hitToken = cell.token;
+      points = calculateTokenScore(cell.token, gameState.shapeValues, gameState.colorMultipliers);
+    } else if (cell.isBomb) {
       result = 'bomb';
     }
 
@@ -322,7 +334,7 @@ export function MuuzahGame() {
       x,
       y,
       result,
-      token: result === 'hit' ? { shape: 'star', color: 'blue' } : undefined,
+      token: hitToken,
       points: result === 'hit' ? points : undefined,
     });
 
