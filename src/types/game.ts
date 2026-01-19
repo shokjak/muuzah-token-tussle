@@ -44,6 +44,7 @@ export interface ColorMultipliers {
 
 export type GamePhase = 
   | 'loading'
+  | 'menu'                  // Main menu after user loaded
   | 'waiting-for-opponent'  // In matchmaking queue
   | 'setup-p1'              // Player 1 placing tokens
   | 'setup-p2'              // Player 2 placing tokens
