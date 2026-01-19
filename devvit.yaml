@@ -1,11 +1,14 @@
 # Devvit configuration for Muuzah
 name: muuzah-game
-version: 0.0.2
+version: 0.0.3
 
-# Required capabilities
 capabilities:
   - redis
   - redditAPI
 
-# Webview configuration - using webroot directory
-webroot: webroot
+# Webview configuration - correct format
+post:
+  dir: webroot
+  entrypoints:
+    default:
+      entry: index.html
