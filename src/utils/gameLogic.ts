@@ -162,3 +162,49 @@ export function serializeGameState(state: GameState): string {
 export function deserializeGameState(json: string): GameState {
   return JSON.parse(json) as GameState;
 }
+
+/**
+ * Generates a random AI grid with placed tokens and bombs
+ */
+export function generateAIGrid(
+  gridSize: number = GRID_SIZE,
+  tokensCount: number = TOKENS_PER_PLAYER,
+  bombsCount: number = BOMBS_PER_PLAYER
+): Cell[][] {
+  const grid = createEmptyGrid(gridSize);
+  const positions: { x: number; y: number }[] = [];
+  
+  // Generate all possible positions
+  for (let y = 0; y < gridSize; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      positions.push({ x, y });
+    }
+  }
+  
+  // Shuffle positions
+  const shuffled = [...positions].sort(() => Math.random() - 0.5);
+  
+  // Place tokens
+  for (let i = 0; i < tokensCount; i++) {
+    const pos = shuffled[i];
+    const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    grid[pos.y][pos.x] = {
+      token: { shape, color },
+      isBomb: false,
+      isRevealed: false,
+    };
+  }
+  
+  // Place bombs in remaining positions
+  for (let i = 0; i < bombsCount; i++) {
+    const pos = shuffled[tokensCount + i];
+    grid[pos.y][pos.x] = {
+      token: null,
+      isBomb: true,
+      isRevealed: false,
+    };
+  }
+  
+  return grid;
+}
