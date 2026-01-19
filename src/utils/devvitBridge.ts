@@ -1,62 +1,59 @@
 // Devvit PostMessage Bridge
 // Handles communication between the webview (React app) and Devvit backend
 
-import { DevvitMessage, GameState, Cell, LeaderboardEntry } from '@/types/game';
+import { DevvitMessage, Cell, LeaderboardEntry } from '@/types/game';
 
 type MessageHandler = (payload: unknown) => void;
 
 class DevvitBridge {
   private handlers: Map<string, MessageHandler[]> = new Map();
   private isDevvitEnvironment: boolean = false;
-  private initSent: boolean = false;
+  private initialized: boolean = false;
 
   constructor() {
-    // Check if we're running inside Devvit webview
+    // Check if we're running inside Devvit webview (iframe)
     this.isDevvitEnvironment = window.parent !== window;
-    console.log('[DevvitBridge] Initialized, isDevvit:', this.isDevvitEnvironment);
+    console.log('[DevvitBridge] Constructor, isDevvit:', this.isDevvitEnvironment);
 
     // Listen for messages from Devvit backend
     window.addEventListener('message', this.handleMessage.bind(this));
-    
-    // Auto-init when DOM is ready (Devvit webviews need this)
-    if (document.readyState === 'complete') {
-      this.autoInit();
-    } else {
-      window.addEventListener('load', () => this.autoInit());
-    }
-  }
-  
-  private autoInit() {
-    // Send INIT automatically after a short delay to ensure handlers are registered
-    setTimeout(() => {
-      if (!this.initSent && this.isDevvitEnvironment) {
-        console.log('[DevvitBridge] Auto-sending INIT');
-        this.init();
-      }
-    }, 100);
   }
 
   private handleMessage(event: MessageEvent) {
-    console.log('[DevvitBridge] Raw message received:', JSON.stringify(event.data));
+    // Skip non-object messages
+    if (!event.data || typeof event.data !== 'object') {
+      return;
+    }
+
+    console.log('[DevvitBridge] Raw message:', JSON.stringify(event.data).substring(0, 500));
     
-    let data: DevvitMessage | null = null;
+    let messageType: string | null = null;
+    let messagePayload: unknown = null;
     
-    // Handle Devvit's wrapped message format: { type: 'devvit-message', data: { message: {...} } }
+    // Format 1: Devvit wraps messages as { type: 'devvit-message', data: { message: { type, payload } } }
     if (event.data?.type === 'devvit-message' && event.data?.data?.message) {
-      data = event.data.data.message as DevvitMessage;
-      console.log('[DevvitBridge] Unwrapped Devvit message:', JSON.stringify(data));
-    } 
-    // Handle direct message format (for development/testing)
-    else if (event.data?.type && typeof event.data.type === 'string') {
-      data = event.data as DevvitMessage;
-      console.log('[DevvitBridge] Direct message:', JSON.stringify(data));
+      const inner = event.data.data.message;
+      messageType = inner.type;
+      messagePayload = inner.payload;
+      console.log('[DevvitBridge] Format 1 (devvit-message wrap):', messageType);
+    }
+    // Format 2: Direct message { type, payload }
+    else if (event.data?.type && typeof event.data.type === 'string' && event.data.type !== 'webpackOk') {
+      messageType = event.data.type;
+      messagePayload = event.data.payload;
+      console.log('[DevvitBridge] Format 2 (direct):', messageType);
     }
     
-    if (data && data.type) {
-      console.log('[DevvitBridge] Dispatching to handlers for:', data.type);
-      const handlers = this.handlers.get(data.type) || [];
-      console.log('[DevvitBridge] Found', handlers.length, 'handlers');
-      handlers.forEach(handler => handler(data!.payload));
+    if (messageType) {
+      const handlers = this.handlers.get(messageType) || [];
+      console.log('[DevvitBridge] Dispatching', messageType, 'to', handlers.length, 'handlers');
+      handlers.forEach(handler => {
+        try {
+          handler(messagePayload);
+        } catch (e) {
+          console.error('[DevvitBridge] Handler error:', e);
+        }
+      });
     }
   }
 
@@ -66,7 +63,7 @@ class DevvitBridge {
       this.handlers.set(type, []);
     }
     this.handlers.get(type)!.push(handler);
-    console.log('[DevvitBridge] Registered handler for:', type);
+    console.log('[DevvitBridge] Handler registered for:', type);
   }
 
   // Remove a handler
@@ -81,29 +78,27 @@ class DevvitBridge {
   }
 
   // Send a message to the Devvit backend
-  send(message: DevvitMessage) {
-    console.log('[DevvitBridge] Sending message:', JSON.stringify(message));
+  private send(message: DevvitMessage) {
+    console.log('[DevvitBridge] Sending:', JSON.stringify(message));
     
     if (this.isDevvitEnvironment) {
-      // Devvit expects direct message format - NO wrapping needed
-      // The Devvit framework handles the message routing automatically
-      console.log('[DevvitBridge] Posting to parent:', JSON.stringify(message));
+      // Send directly to parent - Devvit handles routing
       window.parent.postMessage(message, '*');
     } else {
       // Development mode - simulate responses
-      console.log('[DevvitBridge] Dev mode - simulating response');
+      console.log('[DevvitBridge] Dev mode - simulating');
       this.simulateResponse(message);
     }
   }
 
-  // Initialize the connection and request current user data
+  // Initialize the connection - MUST be called after handlers are registered
   init() {
-    if (this.initSent) {
-      console.log('[DevvitBridge] init() already sent, skipping');
+    if (this.initialized) {
+      console.log('[DevvitBridge] Already initialized');
       return;
     }
-    this.initSent = true;
-    console.log('[DevvitBridge] init() called, sending INIT message');
+    this.initialized = true;
+    console.log('[DevvitBridge] Sending INIT');
     this.send({ type: 'INIT' });
   }
 
@@ -138,61 +133,51 @@ class DevvitBridge {
     setTimeout(() => {
       switch (message.type) {
         case 'INIT':
-          this.simulateInit();
+          this.dispatchMockInit();
           break;
         case 'FIND_MATCH':
-          this.simulateMatchFound();
+          this.dispatchMockMatch();
           break;
         case 'GET_LEADERBOARD':
-          this.simulateLeaderboard();
+          this.dispatchMockLeaderboard();
           break;
       }
-    }, 500);
+    }, 300);
   }
 
-  private simulateInit() {
-    const mockState: Partial<GameState> = {
-      phase: 'loading',
-    };
-    
-    // Simulate getting user data
+  private dispatchMockInit() {
     const handlers = this.handlers.get('GAME_STATE_UPDATE') || [];
     handlers.forEach(handler => handler({
       currentUser: {
         id: 'dev_user_1',
         username: 'TestPlayer',
-        avatarUrl: undefined,
       },
       gameState: null,
     }));
   }
 
-  private simulateMatchFound() {
-    // For development, simulate finding a match after a delay
+  private dispatchMockMatch() {
     const handlers = this.handlers.get('MATCH_FOUND') || [];
     handlers.forEach(handler => handler({
       gameId: 'dev_game_' + Date.now(),
       opponent: {
         id: 'dev_user_2',
         username: 'Opponent_Bot',
-        avatarUrl: undefined,
       },
       youArePlayer: 1,
     }));
   }
 
-  private simulateLeaderboard() {
+  private dispatchMockLeaderboard() {
     const mockLeaderboard: LeaderboardEntry[] = [
       { rank: 1, username: 'MuuzahMaster', score: 15000, wins: 42, gamesPlayed: 50 },
       { rank: 2, username: 'TokenHunter', score: 12500, wins: 35, gamesPlayed: 45 },
       { rank: 3, username: 'BombDodger', score: 10000, wins: 28, gamesPlayed: 40 },
-      { rank: 4, username: 'ShapeSeer', score: 8500, wins: 22, gamesPlayed: 35 },
-      { rank: 5, username: 'GridGuru', score: 7000, wins: 18, gamesPlayed: 30 },
     ];
-
     const handlers = this.handlers.get('LEADERBOARD_DATA') || [];
     handlers.forEach(handler => handler(mockLeaderboard));
   }
 }
 
+// Single instance
 export const devvitBridge = new DevvitBridge();

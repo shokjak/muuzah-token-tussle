@@ -1,5 +1,8 @@
-BUILD_VERSION: 2025-01-19-v8
-CHANGES:
-- Fixed message format: removed unnecessary wrapping
-- Frontend now sends direct messages (Devvit handles routing)
-- Backend expects direct message format
+BUILD_VERSION: 2025-01-19-v9
+COMPREHENSIVE FIX:
+- Simplified devvit.yaml to use 'webroot: webroot' format
+- Changed webview id to 'game-webview' for consistency
+- Changed webview url to 'index.html' (no ./ prefix)
+- Removed external Google Fonts (blocked in Devvit iframe)
+- Fixed bridge to not auto-init before handlers registered
+- Simplified message handling in both frontend and backend

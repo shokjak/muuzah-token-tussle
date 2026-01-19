@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+/* System fonts only - no external requests in Devvit iframe */
 
 @layer base {
   :root {
@@ -36,7 +36,7 @@
 
     --radius: 0.75rem;
 
-    /* Game token colors - vibrant and distinct */
+    /* Game token colors */
     --token-red: 0 84% 60%;
     --token-blue: 217 91% 60%;
     --token-green: 142 71% 45%;
@@ -97,20 +97,19 @@
     --grid-cell: 220 18% 16%;
     --grid-cell-hover: 220 16% 20%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 }
@@ -118,7 +117,6 @@
 @layer components {
   .game-title {
     @apply text-4xl md:text-5xl font-bold tracking-tight;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
     color: hsl(var(--primary));
   }
 
