@@ -46,55 +46,60 @@ Devvit.addCustomPostType({
   render: (context) => {
     const [webviewVisible, setWebviewVisible] = useState(false);
 
-    const { data: currentUser, loading: userLoading } = useAsync(async () => {
-      const user = await context.reddit.getCurrentUser();
-      return user ? { id: user.id, username: user.username } : null;
-    });
+    // Synchronously handle messages from webview
+    const onMessage = (msg: any) => {
+      // Handle async operations inside
+      (async () => {
+        console.log('[Backend] Received message:', JSON.stringify(msg).substring(0, 200));
+        
+        const type = msg?.type;
+        const payload = msg?.payload;
 
-    const onMessage = async (msg: any) => {
-      console.log('[Backend] Message:', JSON.stringify(msg));
-      
-      const { type, payload } = msg;
-
-      if (type === 'INIT') {
-        // Always fetch fresh user data for INIT
-        let userData = currentUser;
-        if (!userData) {
+        if (type === 'INIT') {
+          console.log('[Backend] Processing INIT');
           try {
             const user = await context.reddit.getCurrentUser();
-            userData = user ? { id: user.id, username: user.username } : null;
+            const userData = user ? { id: user.id, username: user.username } : null;
+            console.log('[Backend] Sending user data:', userData?.username);
+            context.ui.webView.postMessage('game-webview', {
+              type: 'GAME_STATE_UPDATE',
+              payload: { currentUser: userData, gameState: null },
+            });
           } catch (e) {
-            console.error('[Backend] User fetch error:', e);
+            console.error('[Backend] INIT error:', e);
           }
+          return;
         }
-        
-        console.log('[Backend] Responding to INIT with user:', userData);
-        context.ui.webView.postMessage('game-webview', {
-          type: 'GAME_STATE_UPDATE',
-          payload: { currentUser: userData, gameState: null },
-        });
-        return;
-      }
 
-      if (type === 'FIND_MATCH' && currentUser) {
-        await handleFindMatch(context, currentUser);
-        return;
-      }
+        if (type === 'FIND_MATCH') {
+          const user = await context.reddit.getCurrentUser();
+          if (user) {
+            await handleFindMatch(context, { id: user.id, username: user.username });
+          }
+          return;
+        }
 
-      if (type === 'SUBMIT_SETUP' && currentUser) {
-        await handleSubmitSetup(context, currentUser, payload?.grid);
-        return;
-      }
+        if (type === 'SUBMIT_SETUP') {
+          const user = await context.reddit.getCurrentUser();
+          if (user) {
+            await handleSubmitSetup(context, { id: user.id, username: user.username }, payload?.grid);
+          }
+          return;
+        }
 
-      if (type === 'ATTACK' && currentUser) {
-        await handleAttack(context, currentUser, payload?.x, payload?.y);
-        return;
-      }
+        if (type === 'ATTACK') {
+          const user = await context.reddit.getCurrentUser();
+          if (user) {
+            await handleAttack(context, { id: user.id, username: user.username }, payload?.x, payload?.y);
+          }
+          return;
+        }
 
-      if (type === 'GET_LEADERBOARD') {
-        await handleGetLeaderboard(context);
-        return;
-      }
+        if (type === 'GET_LEADERBOARD') {
+          await handleGetLeaderboard(context);
+          return;
+        }
+      })();
     };
 
     if (!webviewVisible) {
