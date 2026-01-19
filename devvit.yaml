@@ -1,16 +1,11 @@
 # Devvit configuration for Muuzah
 name: muuzah-game
-version: 0.0.1
-author: your-reddit-username
+version: 0.0.2
 
 # Required capabilities
 capabilities:
-  - redis        # For storing game state and leaderboards
-  - redditAPI    # For getting user info
+  - redis
+  - redditAPI
 
-# Webview configuration - NEW REQUIRED FORMAT
-post:
-  dir: webroot
-  entrypoints:
-    default:
-      entry: index.html
+# Webview configuration - using webroot directory
+webroot: webroot
