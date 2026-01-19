@@ -12,25 +12,33 @@ class DevvitBridge {
   constructor() {
     // Check if we're running inside Devvit webview
     this.isDevvitEnvironment = window.parent !== window;
+    console.log('[DevvitBridge] Initialized, isDevvit:', this.isDevvitEnvironment);
 
     // Listen for messages from Devvit backend
     window.addEventListener('message', this.handleMessage.bind(this));
   }
 
   private handleMessage(event: MessageEvent) {
-    // Devvit wraps messages - check both formats
-    let data = event.data as DevvitMessage;
+    console.log('[DevvitBridge] Raw message received:', JSON.stringify(event.data));
+    
+    let data: DevvitMessage | null = null;
     
     // Handle Devvit's wrapped message format: { type: 'devvit-message', data: { message: {...} } }
     if (event.data?.type === 'devvit-message' && event.data?.data?.message) {
       data = event.data.data.message as DevvitMessage;
+      console.log('[DevvitBridge] Unwrapped Devvit message:', JSON.stringify(data));
+    } 
+    // Handle direct message format (for development/testing)
+    else if (event.data?.type && typeof event.data.type === 'string') {
+      data = event.data as DevvitMessage;
+      console.log('[DevvitBridge] Direct message:', JSON.stringify(data));
     }
     
-    console.log('[DevvitBridge] Received:', data);
-    
     if (data && data.type) {
+      console.log('[DevvitBridge] Dispatching to handlers for:', data.type);
       const handlers = this.handlers.get(data.type) || [];
-      handlers.forEach(handler => handler(data.payload));
+      console.log('[DevvitBridge] Found', handlers.length, 'handlers');
+      handlers.forEach(handler => handler(data!.payload));
     }
   }
 
@@ -40,6 +48,7 @@ class DevvitBridge {
       this.handlers.set(type, []);
     }
     this.handlers.get(type)!.push(handler);
+    console.log('[DevvitBridge] Registered handler for:', type);
   }
 
   // Remove a handler
@@ -55,17 +64,26 @@ class DevvitBridge {
 
   // Send a message to the Devvit backend
   send(message: DevvitMessage) {
+    console.log('[DevvitBridge] Sending message:', JSON.stringify(message));
+    
     if (this.isDevvitEnvironment) {
-      window.parent.postMessage(message, '*');
+      // Devvit requires wrapped message format
+      const wrappedMessage = {
+        type: 'devvit-message',
+        data: { message }
+      };
+      console.log('[DevvitBridge] Posting wrapped:', JSON.stringify(wrappedMessage));
+      window.parent.postMessage(wrappedMessage, '*');
     } else {
       // Development mode - simulate responses
-      console.log('[DevvitBridge] Would send:', message);
+      console.log('[DevvitBridge] Dev mode - simulating response');
       this.simulateResponse(message);
     }
   }
 
   // Initialize the connection and request current user data
   init() {
+    console.log('[DevvitBridge] init() called');
     this.send({ type: 'INIT' });
   }
 

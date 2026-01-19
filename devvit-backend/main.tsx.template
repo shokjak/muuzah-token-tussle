@@ -69,22 +69,35 @@ Devvit.addCustomPostType({
 
     // Handle messages from the webview
     const handleMessage = (msg: any) => {
-      const { type, payload } = msg;
+      console.log('[Devvit Backend] Raw message received:', JSON.stringify(msg));
+      
+      // Handle wrapped message format from webview
+      let actualMessage = msg;
+      if (msg?.type === 'devvit-message' && msg?.data?.message) {
+        actualMessage = msg.data.message;
+        console.log('[Devvit Backend] Unwrapped message:', JSON.stringify(actualMessage));
+      }
+      
+      const { type, payload } = actualMessage;
+      console.log('[Devvit Backend] Processing type:', type);
 
       const processMessage = async () => {
         switch (type) {
           case 'INIT':
+            console.log('[Devvit Backend] Handling INIT, currentUser:', currentUser);
             // Fetch user data directly if useAsync hasn't loaded yet
             let userData = currentUser;
             if (!userData) {
               try {
                 const user = await context.reddit.getCurrentUser();
                 userData = user ? { id: user.id, username: user.username } : null;
+                console.log('[Devvit Backend] Fetched user:', userData);
               } catch (e) {
-                console.error('Failed to get user:', e);
+                console.error('[Devvit Backend] Failed to get user:', e);
                 userData = null;
               }
             }
+            console.log('[Devvit Backend] Sending GAME_STATE_UPDATE with user:', userData);
             context.ui.webView.postMessage('muuzah-webview', {
               type: 'GAME_STATE_UPDATE',
               payload: {
@@ -115,10 +128,13 @@ Devvit.addCustomPostType({
           case 'GET_LEADERBOARD':
             await handleGetLeaderboard(context);
             break;
+            
+          default:
+            console.log('[Devvit Backend] Unknown message type:', type);
         }
       };
 
-      processMessage().catch(console.error);
+      processMessage().catch((e) => console.error('[Devvit Backend] Error:', e));
     };
 
     // Show launch button initially
