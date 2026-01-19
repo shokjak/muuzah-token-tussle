@@ -1,8 +1,6 @@
-BUILD_VERSION: 2025-01-19-v9
-COMPREHENSIVE FIX:
-- Simplified devvit.yaml to use 'webroot: webroot' format
-- Changed webview id to 'game-webview' for consistency
-- Changed webview url to 'index.html' (no ./ prefix)
-- Removed external Google Fonts (blocked in Devvit iframe)
-- Fixed bridge to not auto-init before handlers registered
-- Simplified message handling in both frontend and backend
+BUILD_VERSION: 2025-01-19-v10
+CRITICAL FIX:
+- Removed useAsync hook dependency in onMessage handler
+- Fetch fresh user data per message to avoid stale closure
+- Wrapped async logic in sync function for Devvit compatibility
+- Simplified rollup output naming for consistent asset paths

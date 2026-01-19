@@ -6,12 +6,19 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   base: './', // Required for Devvit webview asset loading
+  build: {
+    // Ensure consistent output naming for Devvit
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
+      }
+    }
+  },
   server: {
     host: "::",
     port: 8080,
-    hmr: {
-      overlay: false,
-    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
