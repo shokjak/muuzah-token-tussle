@@ -36,9 +36,9 @@ export function GameCell({
       onClick={() => onClick(x, y)}
       disabled={disabled || cell.isRevealed}
       className={cn(
-        'grid-cell w-10 h-10 md:w-12 md:h-12',
+        'grid-cell w-10 h-10 md:w-11 md:h-11',
         getCellClass(),
-        disabled && 'cursor-not-allowed opacity-50',
+        disabled && !cell.isRevealed && 'opacity-60',
         cell.isRevealed && 'cursor-default'
       )}
       aria-label={`Cell ${String.fromCharCode(65 + x)}${y + 1}`}
@@ -51,10 +51,10 @@ export function GameCell({
         />
       )}
       {shouldShowContent && cell.isBomb && !cell.token && (
-        <Bomb className="w-6 h-6 text-destructive animate-float" />
+        <Bomb className="w-5 h-5 text-destructive" />
       )}
       {cell.isRevealed && !cell.token && !cell.isBomb && (
-        <X className="w-5 h-5 text-muted-foreground opacity-50" />
+        <X className="w-4 h-4 text-muted-foreground opacity-40" />
       )}
     </button>
   );

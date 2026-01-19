@@ -1,78 +1,107 @@
-import { GameState } from '@/types/game';
+import { Player, RedditUser } from '@/types/game';
 import { Button } from '@/components/ui/button';
-import { Trophy, Heart, Skull, RotateCcw } from 'lucide-react';
+import { Trophy, Heart, Skull, RotateCcw, Medal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import confetti from 'canvas-confetti';
 import { useEffect } from 'react';
+import { soundManager } from '@/utils/soundManager';
+import confetti from 'canvas-confetti';
 
 interface GameOverProps {
-  gameState: GameState;
+  currentUser: RedditUser;
+  player1: Player;
+  player2: Player;
+  winnerId: string;
+  winReason: 'sudden-death' | 'score';
   onPlayAgain: () => void;
+  onViewLeaderboard: () => void;
 }
 
-export function GameOver({ gameState, onPlayAgain }: GameOverProps) {
-  const winner = gameState.winner === 1 ? gameState.player1 : gameState.player2;
-  const loser = gameState.winner === 1 ? gameState.player2 : gameState.player1;
-  const isSuddenDeath = loser.lives <= 0;
+export function GameOver({
+  currentUser,
+  player1,
+  player2,
+  winnerId,
+  winReason,
+  onPlayAgain,
+  onViewLeaderboard,
+}: GameOverProps) {
+  const winner = winnerId === player1.user.id ? player1 : player2;
+  const loser = winnerId === player1.user.id ? player2 : player1;
+  const youWon = currentUser.id === winnerId;
 
   useEffect(() => {
-    // Celebration confetti
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#00ffff', '#ff00ff', '#ffff00', '#00ff00'],
-    });
-  }, []);
+    if (youWon) {
+      soundManager.playVictory();
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#ff6b35', '#3b82f6', '#22c55e', '#eab308'],
+      });
+    } else {
+      soundManager.playDefeat();
+    }
+  }, [youWon]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="text-center max-w-lg">
-        {/* Trophy Animation */}
-        <div className="mb-8 relative">
-          <Trophy className="w-24 h-24 mx-auto text-accent animate-float" />
-          <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full" />
+      <div className="text-center max-w-md w-full animate-fade-in">
+        {/* Result Icon */}
+        <div className="mb-6">
+          {youWon ? (
+            <Trophy className="w-20 h-20 mx-auto text-yellow-500" />
+          ) : (
+            <Medal className="w-20 h-20 mx-auto text-muted-foreground" />
+          )}
         </div>
 
-        {/* Winner Announcement */}
-        <h1 className="game-title text-4xl md:text-5xl mb-4">VICTORY!</h1>
-        <h2 className="text-2xl md:text-3xl font-bold text-primary mb-6 font-['Orbitron']">
-          {winner.name} Wins!
+        {/* Result Text */}
+        <h1 className={cn(
+          'game-title text-3xl md:text-4xl mb-2',
+          youWon ? 'text-primary' : 'text-muted-foreground'
+        )}>
+          {youWon ? 'VICTORY!' : 'DEFEAT'}
+        </h1>
+        <h2 className="text-xl font-semibold text-foreground mb-4">
+          {winner.user.username} Wins!
         </h2>
 
         {/* Win Condition */}
         <div
           className={cn(
-            'inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8',
-            isSuddenDeath ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'
+            'inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6',
+            winReason === 'sudden-death' 
+              ? 'bg-destructive/10 text-destructive' 
+              : 'bg-primary/10 text-primary'
           )}
         >
-          {isSuddenDeath ? (
+          {winReason === 'sudden-death' ? (
             <>
-              <Skull className="w-5 h-5" />
-              <span className="font-semibold">Sudden Death Victory</span>
+              <Skull className="w-4 h-4" />
+              <span className="font-medium text-sm">Sudden Death</span>
             </>
           ) : (
             <>
-              <Trophy className="w-5 h-5" />
-              <span className="font-semibold">Score Victory</span>
+              <Trophy className="w-4 h-4" />
+              <span className="font-medium text-sm">Score Victory</span>
             </>
           )}
         </div>
 
         {/* Final Scores */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <div
             className={cn(
               'player-panel',
-              gameState.winner === 1 && 'active-player'
+              winnerId === player1.user.id && 'active-player'
             )}
           >
-            <p className="text-sm text-muted-foreground mb-1">
-              {gameState.player1.name}
+            <p className="text-sm text-muted-foreground mb-1 truncate">
+              {player1.user.username}
+              {player1.user.id === currentUser.id && ' (You)'}
             </p>
-            <p className="text-3xl font-bold text-accent font-['Orbitron']">
-              {gameState.player1.score}
+            <p className="text-2xl font-bold text-primary">
+              {player1.score}
             </p>
             <div className="flex justify-center gap-1 mt-2">
               {Array(3)
@@ -82,9 +111,9 @@ export function GameOver({ gameState, onPlayAgain }: GameOverProps) {
                     key={i}
                     className={cn(
                       'w-4 h-4',
-                      i < gameState.player1.lives
+                      i < player1.lives
                         ? 'text-destructive fill-destructive'
-                        : 'text-muted-foreground'
+                        : 'text-muted-foreground/30'
                     )}
                   />
                 ))}
@@ -93,14 +122,15 @@ export function GameOver({ gameState, onPlayAgain }: GameOverProps) {
           <div
             className={cn(
               'player-panel',
-              gameState.winner === 2 && 'active-player'
+              winnerId === player2.user.id && 'active-player'
             )}
           >
-            <p className="text-sm text-muted-foreground mb-1">
-              {gameState.player2.name}
+            <p className="text-sm text-muted-foreground mb-1 truncate">
+              {player2.user.username}
+              {player2.user.id === currentUser.id && ' (You)'}
             </p>
-            <p className="text-3xl font-bold text-accent font-['Orbitron']">
-              {gameState.player2.score}
+            <p className="text-2xl font-bold text-primary">
+              {player2.score}
             </p>
             <div className="flex justify-center gap-1 mt-2">
               {Array(3)
@@ -110,9 +140,9 @@ export function GameOver({ gameState, onPlayAgain }: GameOverProps) {
                     key={i}
                     className={cn(
                       'w-4 h-4',
-                      i < gameState.player2.lives
+                      i < player2.lives
                         ? 'text-destructive fill-destructive'
-                        : 'text-muted-foreground'
+                        : 'text-muted-foreground/30'
                     )}
                   />
                 ))}
@@ -120,15 +150,26 @@ export function GameOver({ gameState, onPlayAgain }: GameOverProps) {
           </div>
         </div>
 
-        {/* Play Again Button */}
-        <Button
-          onClick={onPlayAgain}
-          size="lg"
-          className="bg-primary hover:bg-primary/80 text-lg px-8"
-        >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Play Again
-        </Button>
+        {/* Actions */}
+        <div className="space-y-3">
+          <Button
+            onClick={onPlayAgain}
+            size="lg"
+            className="w-full"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Find New Match
+          </Button>
+          <Button
+            onClick={onViewLeaderboard}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          >
+            <Trophy className="w-4 h-4 mr-2" />
+            View Leaderboard
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import {
   ColorMultipliers,
   GameState,
   Token,
+  RedditUser,
   SHAPES,
   COLORS,
   GRID_SIZE,
@@ -16,7 +17,7 @@ import {
 /**
  * Creates an empty grid of cells
  */
-export function createEmptyGrid(size: number): Cell[][] {
+export function createEmptyGrid(size: number = GRID_SIZE): Cell[][] {
   return Array(size)
     .fill(null)
     .map(() =>
@@ -26,14 +27,13 @@ export function createEmptyGrid(size: number): Cell[][] {
           token: null,
           isBomb: false,
           isRevealed: false,
-          isHit: false,
         }))
     );
 }
 
 /**
  * Randomizes point values for shapes at the start of each game
- * Values range from 10 to 100 in increments of 10
+ * Values: 10, 25, 50, 100 - shuffled randomly
  */
 export function generateRandomShapeValues(): ShapeValues {
   const values = [10, 25, 50, 100];
@@ -48,7 +48,7 @@ export function generateRandomShapeValues(): ShapeValues {
 }
 
 /**
- * Generates color multipliers (1x, 1.5x, 2x, 2.5x)
+ * Generates color multipliers (1x, 1.5x, 2x, 2.5x) - shuffled randomly
  */
 export function generateColorMultipliers(): ColorMultipliers {
   const multipliers = [1, 1.5, 2, 2.5];
@@ -63,37 +63,47 @@ export function generateColorMultipliers(): ColorMultipliers {
 }
 
 /**
- * Creates a new player with an empty grid
+ * Creates a new player
  */
-export function createPlayer(name: string, gridSize: number): Player {
+export function createPlayer(user: RedditUser, gridSize: number = GRID_SIZE): Player {
   return {
-    name,
+    user,
     grid: createEmptyGrid(gridSize),
     lives: INITIAL_LIVES,
     score: 0,
+    setupComplete: false,
   };
 }
 
 /**
- * Initializes a new game state
+ * Initializes a new game state for a match between two players
  */
-export function initializeGame(): GameState {
+export function initializeGame(
+  gameId: string,
+  player1User: RedditUser,
+  player2User: RedditUser
+): GameState {
   return {
+    gameId,
     phase: 'setup-p1',
-    currentPlayer: 1,
-    player1: createPlayer('Player 1', GRID_SIZE),
-    player2: createPlayer('Player 2', GRID_SIZE),
+    player1: createPlayer(player1User),
+    player2: createPlayer(player2User),
+    currentTurnUserId: player1User.id,
     shapeValues: generateRandomShapeValues(),
     colorMultipliers: generateColorMultipliers(),
-    winner: null,
+    winnerId: null,
+    winReason: null,
     gridSize: GRID_SIZE,
     tokensPerPlayer: TOKENS_PER_PLAYER,
     bombsPerPlayer: BOMBS_PER_PLAYER,
+    createdAt: Date.now(),
+    lastMoveAt: Date.now(),
   };
 }
 
 /**
  * Calculates the score for hitting a token
+ * Formula: Base Points × Color Multiplier
  */
 export function calculateTokenScore(
   token: Token,
@@ -127,21 +137,28 @@ export function allTokensRevealed(grid: Cell[][]): boolean {
 }
 
 /**
- * Gets the opponent player number
- */
-export function getOpponent(current: 1 | 2): 1 | 2 {
-  return current === 1 ? 2 : 1;
-}
-
-/**
  * Validates if setup is complete for a player
  */
 export function isSetupComplete(
   grid: Cell[][],
-  requiredTokens: number,
-  requiredBombs: number
+  requiredTokens: number = TOKENS_PER_PLAYER,
+  requiredBombs: number = BOMBS_PER_PLAYER
 ): boolean {
   return (
     countTokens(grid) === requiredTokens && countBombs(grid) === requiredBombs
   );
+}
+
+/**
+ * Serializes game state for storage/transmission
+ */
+export function serializeGameState(state: GameState): string {
+  return JSON.stringify(state);
+}
+
+/**
+ * Deserializes game state from storage/transmission
+ */
+export function deserializeGameState(json: string): GameState {
+  return JSON.parse(json) as GameState;
 }

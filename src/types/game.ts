@@ -1,4 +1,4 @@
-// Game Types for Muuzah
+// Game Types for Muuzah - Reddit Devvit Edition
 
 export type Shape = 'circle' | 'square' | 'triangle' | 'star';
 export type TokenColor = 'red' | 'blue' | 'green' | 'yellow';
@@ -12,14 +12,20 @@ export interface Cell {
   token: Token | null;
   isBomb: boolean;
   isRevealed: boolean;
-  isHit: boolean;
+}
+
+export interface RedditUser {
+  id: string;
+  username: string;
+  avatarUrl?: string;
 }
 
 export interface Player {
-  name: string;
+  user: RedditUser;
   grid: Cell[][];
   lives: number;
   score: number;
+  setupComplete: boolean;
 }
 
 export interface ShapeValues {
@@ -36,17 +42,57 @@ export interface ColorMultipliers {
   yellow: number;
 }
 
+export type GamePhase = 
+  | 'loading'
+  | 'waiting-for-opponent'  // In matchmaking queue
+  | 'setup-p1'              // Player 1 placing tokens
+  | 'setup-p2'              // Player 2 placing tokens
+  | 'waiting-for-setup'     // Waiting for opponent to finish setup
+  | 'your-turn'             // It's your turn to attack
+  | 'opponent-turn'         // Waiting for opponent's move
+  | 'gameover';
+
 export interface GameState {
-  phase: 'setup-p1' | 'setup-p2' | 'battle' | 'gameover';
-  currentPlayer: 1 | 2;
-  player1: Player;
-  player2: Player;
+  gameId: string;
+  phase: GamePhase;
+  player1: Player | null;
+  player2: Player | null;
+  currentTurnUserId: string | null;
   shapeValues: ShapeValues;
   colorMultipliers: ColorMultipliers;
-  winner: 1 | 2 | null;
+  winnerId: string | null;
+  winReason: 'sudden-death' | 'score' | null;
   gridSize: number;
   tokensPerPlayer: number;
   bombsPerPlayer: number;
+  createdAt: number;
+  lastMoveAt: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  score: number;
+  wins: number;
+  gamesPlayed: number;
+}
+
+// Devvit message types
+export type DevvitMessageType = 
+  | 'INIT'
+  | 'FIND_MATCH'
+  | 'SUBMIT_SETUP'
+  | 'ATTACK'
+  | 'GET_LEADERBOARD'
+  | 'GAME_STATE_UPDATE'
+  | 'MATCH_FOUND'
+  | 'ATTACK_RESULT'
+  | 'LEADERBOARD_DATA'
+  | 'ERROR';
+
+export interface DevvitMessage {
+  type: DevvitMessageType;
+  payload?: unknown;
 }
 
 export const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'star'];

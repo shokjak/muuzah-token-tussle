@@ -1,21 +1,35 @@
 import { useState } from 'react';
-import { GameState, Token, Cell } from '@/types/game';
+import { Cell, Token, ShapeValues, ColorMultipliers, RedditUser } from '@/types/game';
 import { GameGrid } from './GameGrid';
 import { TokenPicker } from './TokenPicker';
 import { MarketPanel } from './MarketPanel';
+import { SoundToggle } from './SoundToggle';
 import { Button } from '@/components/ui/button';
-import { countTokens, countBombs, isSetupComplete } from '@/utils/gameLogic';
-import { ArrowRight, RotateCcw } from 'lucide-react';
+import { countTokens, countBombs, isSetupComplete, createEmptyGrid } from '@/utils/gameLogic';
+import { soundManager } from '@/utils/soundManager';
+import { ArrowRight, RotateCcw, User } from 'lucide-react';
 
 interface SetupPhaseProps {
-  gameState: GameState;
+  currentUser: RedditUser;
+  grid: Cell[][];
+  shapeValues: ShapeValues;
+  colorMultipliers: ColorMultipliers;
+  tokensRequired: number;
+  bombsRequired: number;
+  gridSize: number;
   onPlaceToken: (x: number, y: number, token: Token | null, isBomb: boolean) => void;
   onConfirmSetup: () => void;
   onResetGrid: () => void;
 }
 
 export function SetupPhase({
-  gameState,
+  currentUser,
+  grid,
+  shapeValues,
+  colorMultipliers,
+  tokensRequired,
+  bombsRequired,
+  gridSize,
   onPlaceToken,
   onConfirmSetup,
   onResetGrid,
@@ -23,17 +37,9 @@ export function SetupPhase({
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedBomb, setSelectedBomb] = useState(false);
 
-  const isPlayer1 = gameState.phase === 'setup-p1';
-  const currentPlayer = isPlayer1 ? gameState.player1 : gameState.player2;
-  const grid = currentPlayer.grid;
-
   const tokensPlaced = countTokens(grid);
   const bombsPlaced = countBombs(grid);
-  const setupComplete = isSetupComplete(
-    grid,
-    gameState.tokensPerPlayer,
-    gameState.bombsPerPlayer
-  );
+  const setupComplete = isSetupComplete(grid, tokensRequired, bombsRequired);
 
   const handleCellClick = (x: number, y: number) => {
     const cell = grid[y][x];
@@ -41,34 +47,41 @@ export function SetupPhase({
     // If cell already has content, remove it
     if (cell.token || cell.isBomb) {
       onPlaceToken(x, y, null, false);
+      soundManager.playPlace();
       return;
     }
 
     // Place selected token or bomb
-    if (selectedToken && tokensPlaced < gameState.tokensPerPlayer) {
+    if (selectedToken && tokensPlaced < tokensRequired) {
       onPlaceToken(x, y, selectedToken, false);
-    } else if (selectedBomb && bombsPlaced < gameState.bombsPerPlayer) {
+      soundManager.playPlace();
+    } else if (selectedBomb && bombsPlaced < bombsRequired) {
       onPlaceToken(x, y, null, true);
+      soundManager.playPlace();
     }
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background p-4 md:p-6">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="game-title mb-2">MUUZAH</h1>
-          <p className="text-xl text-muted-foreground">
-            {isPlayer1 ? 'Player 1' : 'Player 2'} - Place Your Tokens
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            ⚠️ {isPlayer1 ? 'Player 2' : 'Player 1'}, look away!
-          </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="game-title text-2xl md:text-3xl mb-1">MUUZAH</h1>
+            <p className="text-muted-foreground">Place your tokens strategically</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{currentUser.username}</span>
+            </div>
+            <SoundToggle />
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-[1fr_auto_1fr] gap-6 items-start">
+        <div className="grid lg:grid-cols-[280px_1fr_280px] gap-6 items-start">
           {/* Left Panel - Token Picker */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-2 lg:order-1">
             <TokenPicker
               selectedToken={selectedToken}
               selectedBomb={selectedBomb}
@@ -76,8 +89,8 @@ export function SetupPhase({
               onSelectBomb={setSelectedBomb}
               tokensPlaced={tokensPlaced}
               bombsPlaced={bombsPlaced}
-              tokensRequired={gameState.tokensPerPlayer}
-              bombsRequired={gameState.bombsPerPlayer}
+              tokensRequired={tokensRequired}
+              bombsRequired={bombsRequired}
             />
 
             <div className="flex gap-2">
@@ -92,7 +105,7 @@ export function SetupPhase({
               <Button
                 onClick={onConfirmSetup}
                 disabled={!setupComplete}
-                className="flex-1 bg-primary hover:bg-primary/80"
+                className="flex-1"
               >
                 Confirm
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -101,8 +114,8 @@ export function SetupPhase({
           </div>
 
           {/* Center - Grid */}
-          <div className="flex justify-center">
-            <div className="neon-border rounded-xl p-4 bg-card/50">
+          <div className="flex justify-center order-1 lg:order-2">
+            <div className="bg-card rounded-xl p-4 border shadow-sm">
               <GameGrid
                 grid={grid}
                 onCellClick={handleCellClick}
@@ -113,10 +126,12 @@ export function SetupPhase({
           </div>
 
           {/* Right Panel - Market Values */}
-          <MarketPanel
-            shapeValues={gameState.shapeValues}
-            colorMultipliers={gameState.colorMultipliers}
-          />
+          <div className="order-3">
+            <MarketPanel
+              shapeValues={shapeValues}
+              colorMultipliers={colorMultipliers}
+            />
+          </div>
         </div>
       </div>
     </div>
