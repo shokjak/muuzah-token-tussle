@@ -43,16 +43,19 @@ export function GameCell({
       )}
       aria-label={`Cell ${String.fromCharCode(65 + x)}${y + 1}`}
     >
-      {shouldShowContent && cell.token && (
+      {/* Show token if it's own grid OR if revealed (hit) */}
+      {(isOwn || showContent || (cell.isRevealed && cell.token)) && cell.token && (
         <TokenShape
           shape={cell.token.shape}
           color={cell.token.color}
           size="md"
         />
       )}
-      {shouldShowContent && cell.isBomb && !cell.token && (
+      {/* Show bomb if it's own grid OR if revealed */}
+      {(isOwn || showContent || cell.isRevealed) && cell.isBomb && !cell.token && (
         <Bomb className="w-5 h-5 text-destructive" />
       )}
+      {/* Show X only for misses (revealed but no token and no bomb) */}
       {cell.isRevealed && !cell.token && !cell.isBomb && (
         <X className="w-4 h-4 text-muted-foreground opacity-40" />
       )}
