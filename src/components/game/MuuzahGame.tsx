@@ -50,12 +50,15 @@ export function MuuzahGame() {
   // Initialize connection to Devvit
   useEffect(() => {
     const handleGameStateUpdate = (payload: unknown) => {
+      console.log('[MuuzahGame] GAME_STATE_UPDATE received:', payload);
       const data = payload as { currentUser: RedditUser; gameState: GameState | null };
-      setCurrentUser(data.currentUser);
+      if (data.currentUser) {
+        setCurrentUser(data.currentUser);
+      }
       if (data.gameState) {
         setGameState(data.gameState);
       }
-      setPhase('loading'); // Will be set properly after
+      // Don't reset to loading - if we have a user, show menu
     };
 
     const handleMatchFound = (payload: unknown) => {
