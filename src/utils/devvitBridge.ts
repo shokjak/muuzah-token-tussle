@@ -18,8 +18,15 @@ class DevvitBridge {
   }
 
   private handleMessage(event: MessageEvent) {
-    // In production, validate the origin
-    const data = event.data as DevvitMessage;
+    // Devvit wraps messages - check both formats
+    let data = event.data as DevvitMessage;
+    
+    // Handle Devvit's wrapped message format: { type: 'devvit-message', data: { message: {...} } }
+    if (event.data?.type === 'devvit-message' && event.data?.data?.message) {
+      data = event.data.data.message as DevvitMessage;
+    }
+    
+    console.log('[DevvitBridge] Received:', data);
     
     if (data && data.type) {
       const handlers = this.handlers.get(data.type) || [];
