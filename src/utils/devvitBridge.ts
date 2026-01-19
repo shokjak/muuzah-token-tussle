@@ -8,6 +8,7 @@ type MessageHandler = (payload: unknown) => void;
 class DevvitBridge {
   private handlers: Map<string, MessageHandler[]> = new Map();
   private isDevvitEnvironment: boolean = false;
+  private initSent: boolean = false;
 
   constructor() {
     // Check if we're running inside Devvit webview
@@ -16,6 +17,23 @@ class DevvitBridge {
 
     // Listen for messages from Devvit backend
     window.addEventListener('message', this.handleMessage.bind(this));
+    
+    // Auto-init when DOM is ready (Devvit webviews need this)
+    if (document.readyState === 'complete') {
+      this.autoInit();
+    } else {
+      window.addEventListener('load', () => this.autoInit());
+    }
+  }
+  
+  private autoInit() {
+    // Send INIT automatically after a short delay to ensure handlers are registered
+    setTimeout(() => {
+      if (!this.initSent && this.isDevvitEnvironment) {
+        console.log('[DevvitBridge] Auto-sending INIT');
+        this.init();
+      }
+    }, 100);
   }
 
   private handleMessage(event: MessageEvent) {
@@ -83,7 +101,12 @@ class DevvitBridge {
 
   // Initialize the connection and request current user data
   init() {
-    console.log('[DevvitBridge] init() called');
+    if (this.initSent) {
+      console.log('[DevvitBridge] init() already sent, skipping');
+      return;
+    }
+    this.initSent = true;
+    console.log('[DevvitBridge] init() called, sending INIT message');
     this.send({ type: 'INIT' });
   }
 
