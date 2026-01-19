@@ -1,5 +1,5 @@
-BUILD_VERSION: 2025-01-19-v6
+BUILD_VERSION: 2025-01-19-v7
 CHANGES:
-- Removed BrowserRouter (not compatible with Devvit iframe)
-- Fixed webview url to use relative path ./index.html
-- App now renders MuuzahGame directly without routing
+- Fixed auto-initialization for Devvit webview
+- Bridge now sends INIT automatically when webview loads
+- Prevents duplicate INIT calls
