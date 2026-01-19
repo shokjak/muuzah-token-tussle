@@ -49,21 +49,25 @@ export function MuuzahGame() {
 
   // Initialize connection to Devvit
   useEffect(() => {
+    console.log('[MuuzahGame] Setting up event handlers');
+    
     const handleGameStateUpdate = (payload: unknown) => {
       console.log('[MuuzahGame] GAME_STATE_UPDATE received:', payload);
       const data = payload as { currentUser: RedditUser; gameState: GameState | null };
       if (data.currentUser) {
+        console.log('[MuuzahGame] Setting user and transitioning to menu');
         setCurrentUser(data.currentUser);
+        setPhase('menu'); // Explicitly transition to menu phase
       }
       if (data.gameState) {
         setGameState(data.gameState);
       }
-      // Don't reset to loading - if we have a user, show menu
     };
 
     const handleMatchFound = (payload: unknown) => {
+      console.log('[MuuzahGame] MATCH_FOUND received:', payload);
       const data = payload as { 
-        gameId: string; 
+        gameId: string;
         opponent: RedditUser; 
         youArePlayer: 1 | 2;
         shapeValues?: GameState['shapeValues'];
@@ -165,15 +169,17 @@ export function MuuzahGame() {
     // Initialize
     devvitBridge.init();
 
-    // For development, set mock user after a delay
-    setTimeout(() => {
+    // For development, set mock user after a delay if not in Devvit
+    const devTimeout = setTimeout(() => {
       if (!currentUser) {
+        console.log('[MuuzahGame] Dev mode: setting mock user');
         setCurrentUser(DEV_USER);
-        setPhase('loading');
+        setPhase('menu'); // Go to menu, not loading
       }
-    }, 600);
+    }, 1000);
 
     return () => {
+      clearTimeout(devTimeout);
       devvitBridge.off('GAME_STATE_UPDATE', handleGameStateUpdate);
       devvitBridge.off('MATCH_FOUND', handleMatchFound);
       devvitBridge.off('ATTACK_RESULT', handleAttackResult);
@@ -372,7 +378,7 @@ export function MuuzahGame() {
   }
 
   // Main Menu (no active game)
-  if ((phase === 'loading' && currentUser && !gameState) || (!gameState && currentUser)) {
+  if (phase === 'menu' || (currentUser && !gameState && phase !== 'waiting-for-opponent')) {
     return <MainMenu currentUser={currentUser!} onFindMatch={handleFindMatch} />;
   }
 
