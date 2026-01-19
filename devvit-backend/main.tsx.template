@@ -71,15 +71,10 @@ Devvit.addCustomPostType({
     const handleMessage = (msg: any) => {
       console.log('[Devvit Backend] Raw message received:', JSON.stringify(msg));
       
-      // Handle wrapped message format from webview
-      let actualMessage = msg;
-      if (msg?.type === 'devvit-message' && msg?.data?.message) {
-        actualMessage = msg.data.message;
-        console.log('[Devvit Backend] Unwrapped message:', JSON.stringify(actualMessage));
-      }
-      
-      const { type, payload } = actualMessage;
-      console.log('[Devvit Backend] Processing type:', type);
+      // Messages from webview come directly - no unwrapping needed
+      // Devvit passes the message object directly to onMessage
+      const { type, payload } = msg;
+      console.log('[Devvit Backend] Processing type:', type, 'payload:', payload);
 
       const processMessage = async () => {
         switch (type) {
